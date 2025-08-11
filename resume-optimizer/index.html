@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Optimizer</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 900px; margin: auto; background-color: #f4f7f6; }
+        h1 { text-align: center; color: #333; }
+        .container { display: flex; gap: 20px; }
+        .box { flex: 1; display: flex; flex-direction: column; }
+        textarea { width: 100%; height: 300px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
+        button { display: block; width: 100%; padding: 15px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 20px; }
+        button:hover { background-color: #0056b3; }
+        #results { margin-top: 30px; padding: 20px; background-color: white; border: 1px solid #ddd; border-radius: 5px; white-space: pre-wrap; /* This preserves formatting */ }
+        .loader { display: none; text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>AI Resume Optimizer 🚀</h1>
+    <p style="text-align: center;">Paste your resume and a job description below to get AI-powered suggestions.</p>
+
+    <div class="container">
+        <div class="box">
+            <h2>Your Resume</h2>
+            <textarea id="resume-input" placeholder="Paste your full resume text here..."></textarea>
+        </div>
+        <div class="box">
+            <h2>Job Description</h2>
+            <textarea id="job-input" placeholder="Paste the job description text here..."></textarea>
+        </div>
+    </div>
+
+    <button id="submit-btn">Optimize My Resume</button>
+
+    <div class="loader" id="loader">🔄 Analyzing... Please wait.</div>
+    <div id="results"></div>
+
+    <script>
+        const submitBtn = document.getElementById('submit-btn');
+        const resumeInput = document.getElementById('resume-input');
+        const jobInput = document.getElementById('job-input');
+        const resultsDiv = document.getElementById('results');
+        const loader = document.getElementById('loader');
+
+        submitBtn.addEventListener('click', async () => {
+            const resumeText = resumeInput.value;
+            const jobText = jobInput.value;
+
+            if (!resumeText || !jobText) {
+                alert('Please fill out both fields.');
+                return;
+            }
+
+            // Show loader and hide previous results
+            loader.style.display = 'block';
+            resultsDiv.innerHTML = '';
+            submitBtn.disabled = true;
+
+            try {
+                // This is the API call to your Python backend
+                const response = await fetch('http://127.0.0.1:5000/optimize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resume: resumeText,
+                        job_description: jobText
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                resultsDiv.innerText = data.suggestions;
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerText = 'An error occurred. Please check the console or try again.';
+            } finally {
+                // Hide loader and re-enable button
+                loader.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
