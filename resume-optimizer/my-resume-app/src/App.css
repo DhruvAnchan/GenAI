@@ -1,0 +1,113 @@
+main {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+/* Add this to your index.css file */
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #242424; /* This matches the default Vite dark background */
+}
+
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-group label {
+  font-weight: bold;
+  color: #ccc;
+}
+
+.input-group input[type="file"],
+.input-group textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.input-group textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+button {
+  padding: 12px 20px;
+  font-size: 1.1rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  margin-top: 20px;
+  padding: 10px;
+  color: #D8000C;
+  background-color: #FFD2D2;
+  border: 1px solid #D8000C;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.loader {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 1.2rem;
+}
+
+.results-container {
+  margin-top: 30px;
+}
+
+.results-container pre {
+  background-color: #282c34;
+  color: #abb2bf;
+  padding: 20px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* Increased from 20px for more space between sections */
+  padding: 25px; /* Increased padding */
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #282c34;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Increased from 8px for more space between label and input */
+}
