@@ -111,3 +111,50 @@ button:disabled {
   flex-direction: column;
   gap: 10px; /* Increased from 8px for more space between label and input */
 }
+/* Add these new styles for the accordion to App.css */
+
+.accordion {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.accordion-item {
+  border-bottom: 1px solid #e0e0e0;
+}
+.accordion-item:last-child {
+  border-bottom: none;
+}
+
+.accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 15px 20px;
+  background-color: #ffffff;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.accordion-header:hover {
+  background-color: #f9f9f9;
+}
+
+.accordion-score {
+  font-size: 1rem;
+  background-color: #007bff;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 15px;
+}
+
+.accordion-content {
+  padding: 20px;
+  background-color: #fdfdfd;
+  line-height: 1.6;
+}

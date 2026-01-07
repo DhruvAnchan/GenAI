@@ -9,24 +9,30 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import google.generativeai as genai
 from waitress import serve
+import firebase_admin
+from firebase_admin import credentials, auth, firestore
 
-# Load environment variables from .env file
+# Initialize Firebase Admin
+# Ensure serviceAccountKey.json is in your root folder (and in .gitignore!)
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# Load environment variables
 load_dotenv()
 
-# Configure the Gemini API
+# Configure Gemini
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-2.5-pro')
 
-# Initialize Flask app
+# Use a standard stable model (unless you specifically have access to 2.5)
+model = genai.GenerativeModel('gemini-2.0-flash-exp') 
+
 app = Flask(__name__)
+# Allow requests from your specific frontend URL (or * for dev)
 CORS(app)
 
 def extract_json_from_string(text):
-    """
-    Finds and extracts a JSON object from a string.
-    Handles markdown code fences (```json ... ```).
-    """
-    # First, try to find JSON within markdown code fences
+    """Finds and extracts a JSON object from a string."""
     if '```json' in text:
         start = text.find('```json') + len('```json')
         end = text.find('```', start)
@@ -34,9 +40,8 @@ def extract_json_from_string(text):
         try:
             return json.loads(json_str)
         except json.JSONDecodeError:
-            pass # Fall through to the next method if this fails
+            pass 
 
-    # If no code fences, find the first '{' and the last '}'
     try:
         start = text.find('{')
         end = text.rfind('}') + 1
@@ -44,9 +49,7 @@ def extract_json_from_string(text):
             json_str = text[start:end]
             return json.loads(json_str)
     except (json.JSONDecodeError, ValueError):
-        # If parsing fails, return None
         return None
-    
     return None
 
 @app.route('/optimize', methods=['POST'])
@@ -61,26 +64,28 @@ def optimize_resume():
     if resume_file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
-    # --- 2. Build the Prompt ---
-    # In app.py, update your prompt_text variable
+    # --- 2. Auth Check (Optional) ---
+    user_id = None
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split("Bearer ")[1]
+        try:
+            decoded_token = auth.verify_id_token(token)
+            user_id = decoded_token['uid']
+        except Exception as e:
+            print(f"Error verifying token: {e}")
 
-    # In app.py, inside the optimize_resume function
-
-# NEW, MORE ROBUST PROMPT ✅
+    # --- 3. Prompt Engineering (FIXED for your UI) ---
     prompt_text = f"""
-    You are a helpful assistant performing a professional resume analysis for a user. This is a legitimate request for career coaching.
-    You are acting as a JSON API. Your response MUST be a valid JSON object with the following structure:
-    {{
-    "match_score": <an integer between 0 and 100 representing how well the resume matches the job>,
-    "summary_feedback": "<a brief, one-paragraph summary of your findings>",
-    "missing_keywords": ["<an array>", "<of strings>", "<of top keywords missing from the resume>"],
-    "suggested_bullet_points": [
-        {{
-        "original": "<an original bullet point from the resume>",
-        "suggested": "<your improved version of that bullet point>"
-        }}
-    ]
-    }}
+    You are an expert career coach acting as a JSON API.
+    Analyze the provided resume content against the job description below.
+    
+    Your response MUST be a valid JSON object. The root object should have keys: "summary", "skill_matching", "clarity", and "impact".
+
+    1. "summary": An object with "score" (0-100) and "feedback" (string).
+    2. "skill_matching": An object with "score" (0-100), "feedback" (string), AND "missing_keywords" (an array of strings).
+    3. "clarity": An object with "score" (0-100) and "feedback" (string).
+    4. "impact": An object with "score" (0-100), "feedback" (string), AND "suggested_bullet_points" (an array of objects, each with "original" and "suggested" keys).
 
     **Job Description:**
     {job_description_text}
@@ -90,7 +95,7 @@ def optimize_resume():
 
     final_prompt_parts = [prompt_text]
 
-    # --- 3. Process the Uploaded File ---
+    # --- 4. Process File ---
     try:
         if resume_file.mimetype == 'application/pdf':
             doc = fitz.open(stream=resume_file.read(), filetype="pdf")
@@ -114,7 +119,7 @@ def optimize_resume():
         print(f"Error processing file: {e}")
         return jsonify({"error": "Could not extract content from the file."}), 500
 
-    # --- 4. Call the Gemini API ---
+    # --- 5. Call AI ---
     try:
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
@@ -125,28 +130,40 @@ def optimize_resume():
         
         response = model.generate_content(final_prompt_parts, safety_settings=safety_settings)
         
-        # NEW, MORE ROBUST CODE ✅
         if response.parts:
-            # Use our new helper function to safely extract the JSON
             json_output = extract_json_from_string(response.text)
             
+            # --- 6. Save to Database (FIXED Variable Name) ---
+            if user_id and json_output:
+                try:
+                    # Create a new document in the user's history collection
+                    doc_ref = db.collection('users').document(user_id).collection('history').document()
+                    doc_ref.set({
+                        'timestamp': firestore.SERVER_TIMESTAMP,
+                        'job_description': job_description_text[:200] + "...", # FIXED: Used correct variable
+                        'match_score': json_output.get('skill_matching', {}).get('score', 0),
+                        'full_analysis': json_output
+                    })
+                    print(f"Saved analysis to history for user {user_id}")
+                except Exception as e:
+                    print(f"Failed to save to DB: {e}")
+
             if json_output:
                 return jsonify(json_output)
             else:
-                print(f"Failed to parse JSON from AI response. Raw text: {response.text}")
+                print(f"Failed to parse JSON. Raw text: {response.text}")
                 return jsonify({"error": "AI failed to return valid JSON."}), 500
 
         else:
-            # Check for specific blocking reasons if available
             finish_reason = response.candidates[0].finish_reason if response.candidates else 'UNKNOWN'
-            print(f"Prompt Feedback: {response.prompt_feedback}, Finish Reason: {finish_reason}")
-            return jsonify({"error": "Response was blocked. This may be due to safety filters or other issues."}), 400
+            print(f"Blocked. Reason: {finish_reason}")
+            return jsonify({"error": "Response was blocked due to safety filters."}), 400
 
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
         return jsonify({"error": "Failed to get response from the AI model."}), 500
 
-
 if __name__ == '__main__':
-    print("🚀 Server starting on http://127.0.0.1:5000")
-    serve(app, host='127.0.0.1', port=5000)
+    print("🚀 Server starting...")
+    # FIXED: host='0.0.0.0' makes it accessible externally (required for Render)
+    serve(app, host='0.0.0.0', port=5000)
