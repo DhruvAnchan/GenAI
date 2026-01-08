@@ -3,6 +3,7 @@ import io
 import fitz  # PyMuPDF
 import docx
 import json
+import logging  # <--- IMPORT THIS
 from PIL import Image
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -11,6 +12,11 @@ import google.generativeai as genai
 from waitress import serve
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+
+# --- 0. Setup Logging (CRITICAL FIX) ---
+# This ensures logs print to the console immediately without buffering
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Initialize Firebase
 cred = credentials.Certificate("serviceAccountKey.json")
@@ -22,7 +28,6 @@ load_dotenv()
 # --- 1. Configure Gemini ---
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Using the 2.5 Flash model
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 app = Flask(__name__)
@@ -30,8 +35,11 @@ CORS(app)
 
 @app.route('/optimize', methods=['POST'])
 def optimize_resume():
+    logger.info("Received request to /optimize") # Log entry
+
     # --- 2. Input Validation ---
     if 'resume_file' not in request.files:
+        logger.error("No resume file part")
         return jsonify({"error": "No resume file part"}), 400
     
     resume_file = request.files['resume_file']
@@ -48,9 +56,9 @@ def optimize_resume():
             token = auth_header.split("Bearer ")[1]
             decoded_token = auth.verify_id_token(token)
             user_id = decoded_token['uid']
+            logger.info(f"Authenticated user: {user_id}")
         except Exception as e:
-            print(f"Auth Warning: {e}")
-            # Proceeding as anonymous or handle error as you prefer
+            logger.warning(f"Auth Warning: {e}")
 
     # --- 4. Prepare Prompt ---
     prompt_text = f"""
@@ -88,15 +96,17 @@ def optimize_resume():
             final_prompt_parts.append(img)
         
         else:
+            logger.error(f"Unsupported file type: {resume_file.mimetype}")
             return jsonify({"error": "Unsupported file type"}), 400
     
     except Exception as e:
-        print(f"File Processing Error: {e}")
+        logger.error(f"File Processing Error: {e}")
         return jsonify({"error": "Failed to read file"}), 500
 
     # --- 6. Call AI ---
     try:
-        # Enforce JSON output at the API level
+        logger.info("Sending request to Gemini API...") # Checkpoint
+
         generation_config = {
             "response_mime_type": "application/json"
         }
@@ -106,13 +116,17 @@ def optimize_resume():
             generation_config=generation_config
         )
         
-        # Check if the model refused to answer (Safety)
+        # Safety Check
         if response.prompt_feedback and response.prompt_feedback.block_reason:
-            return jsonify({"error": "AI blocked the request due to safety concerns."}), 400
+            logger.warning(f"Blocked. Reason: {response.prompt_feedback.block_reason}")
+            return jsonify({"error": "AI blocked the request."}), 400
 
-        # Parse directly
+        # Log the raw text first (in case JSON parsing fails)
+        # logger.info(f"Raw Model Response: {response.text}") 
+
+        # Parse JSON
         json_output = json.loads(response.text)
-        print("Gemini Output Generated")
+        logger.info("Gemini Output Successfully Generated & Parsed")
 
         # --- 7. Save to DB ---
         if user_id:
@@ -123,15 +137,16 @@ def optimize_resume():
                     'match_score': json_output.get('skill_matching', {}).get('score', 0),
                     'full_analysis': json_output
                 })
+                logger.info(f"Saved to Firestore for user {user_id}")
             except Exception as e:
-                print(f"DB Save Error: {e}")
+                logger.error(f"DB Save Error: {e}")
 
         return jsonify(json_output)
 
     except Exception as e:
-        print(f"Gemini API Error: {e}")
+        logger.error(f"Gemini API Error: {e}", exc_info=True) # exc_info gives full traceback
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    print("Server starting on port 5000...")
+    logger.info("Server starting on port 5000...")
     serve(app, host='0.0.0.0', port=5000)
