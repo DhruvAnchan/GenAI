@@ -127,6 +127,7 @@ def optimize_resume():
         # Parse JSON
         json_output = json.loads(response.text)
         logger.info("Gemini Output Successfully Generated & Parsed")
+        logger.info(json_output)
 
         # --- 7. Save to DB ---
         if user_id:
