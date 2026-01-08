@@ -25,7 +25,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Use a standard stable model (unless you specifically have access to 2.5)
-model = genai.GenerativeModel('gemini-2.0-flash-exp') 
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 app = Flask(__name__)
 # Allow requests from your specific frontend URL (or * for dev)

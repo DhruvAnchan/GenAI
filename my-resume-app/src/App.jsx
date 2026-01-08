@@ -28,7 +28,7 @@ function App() {
     formData.append('job_description', jobDescription);
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/optimize', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/optimize`, {
         method: 'POST',
         body: formData,
       });
