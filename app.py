@@ -132,7 +132,7 @@ def optimize_resume():
         
         if response.parts:
             json_output = extract_json_from_string(response.text)
-            
+            print("Gemini Output:\n",json_output)
             # --- 6. Save to Database (FIXED Variable Name) ---
             if user_id and json_output:
                 try:
