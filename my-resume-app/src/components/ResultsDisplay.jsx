@@ -10,24 +10,27 @@ function ResultsDisplay({ analysis }) {
     <div className="results-container">
       <h2>Analysis Results</h2>
 
+      {/* --- 1. Match Score --- */}
       <div className="score-section card">
         <h3>Match Score</h3>
-        {/* FIXED: Accessed nested skill_matching.score */}
+        {/* FIX: We drill down into 'skill_matching' to find the score */}
         <p className="score">
           {analysis.skill_matching?.score || 0}<span>%</span>
         </p>
       </div>
 
+      {/* --- 2. Summary Feedback --- */}
       <div className="summary-section card">
         <h3>Summary Feedback</h3>
-        {/* FIXED: Accessed nested summary.feedback */}
+        {/* FIX: We check 'summary.feedback' */}
         <p>{analysis.summary?.feedback || "No feedback available."}</p>
       </div>
 
+      {/* --- 3. Missing Keywords --- */}
       <div className="keywords-section card">
         <h3>Missing Keywords to Add</h3>
         <ul className="keywords-list">
-          {/* FIXED: Accessed nested skill_matching.missing_keywords */}
+          {/* FIX: We look inside 'skill_matching.missing_keywords' */}
           {analysis.skill_matching?.missing_keywords && analysis.skill_matching.missing_keywords.length > 0 ? (
             analysis.skill_matching.missing_keywords.map((keyword, index) => (
               <li key={index}>{keyword}</li>
@@ -38,14 +41,19 @@ function ResultsDisplay({ analysis }) {
         </ul>
       </div>
 
+      {/* --- 4. Suggested Bullet Points --- */}
       <div className="bullets-section card">
         <h3>Suggested Bullet Point Improvements</h3>
-        {/* FIXED: Accessed nested impact.suggested_bullet_points */}
+        {/* FIX: We look inside 'impact.suggested_bullet_points' */}
         {analysis.impact?.suggested_bullet_points && analysis.impact.suggested_bullet_points.length > 0 ? (
           analysis.impact.suggested_bullet_points.map((item, index) => (
-            <div key={index} className="bullet-comparison">
-              <p className="text-red-500" style={{ color: 'red' }}><strong>Original:</strong> {item.original}</p>
-              <p className="text-green-500" style={{ color: 'green' }}><strong>Suggested:</strong> {item.suggested}</p>
+            <div key={index} className="bullet-comparison" style={{ marginBottom: '1rem', padding: '10px', background: '#222', borderRadius: '5px' }}>
+              <p style={{ color: '#ff6b6b', textDecoration: 'line-through' }}>
+                <strong>Original:</strong> {item.original}
+              </p>
+              <p style={{ color: '#51cf66' }}>
+                <strong>Suggested:</strong> {item.suggested}
+              </p>
             </div>
           ))
         ) : (
